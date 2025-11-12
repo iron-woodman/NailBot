@@ -40,6 +40,9 @@ def services_keyboard(services: list[Service]) -> InlineKeyboardMarkup:
                 callback_data=f"service_{service.id}"
             )
         )
+    builder.row(InlineKeyboardButton(text="Назад в главное меню", callback_data="back_to_main_menu"))
+    return builder.as_markup()
+
 def appointments_keyboard(appointments: list) -> InlineKeyboardMarkup:
     """
     Создает инлайн-клавиатуру со списком записей и кнопками для отмены.
@@ -119,7 +122,10 @@ def calendar_keyboard(year: int, month: int, available_dates: list[datetime.date
     for _ in range(start_offset):
         row_buttons.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
 
-    days_in_month = (datetime.date(year, month % 12 + 1, 1) - datetime.timedelta(days=1)).day if month < 12 else 31
+    if month == 12:
+        days_in_month = 31
+    else:
+        days_in_month = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)).day
 
     for day in range(1, days_in_month + 1):
         current_date = datetime.date(year, month, day)
@@ -140,9 +146,44 @@ def calendar_keyboard(year: int, month: int, available_dates: list[datetime.date
     next_month = first_day_of_month + datetime.timedelta(days=days_in_month)
 
     builder.row(
-        InlineKeyboardButton(text="<", callback_data=f"calendar_{prev_month.year}_{prev_month.month}"),
+        InlineKeyboardButton(text="<", callback_data=f"calendar_nav_{prev_month.year}_{prev_month.month}"),
         InlineKeyboardButton(text="Назад в главное меню", callback_data="back_to_main_menu"),
-        InlineKeyboardButton(text=">", callback_data=f"calendar_{next_month.year}_{next_month.month}")
+        InlineKeyboardButton(text=">", callback_data=f"calendar_nav_{next_month.year}_{next_month.month}")
     )
 
+    return builder.as_markup()
+
+def time_slots_keyboard(time_slots: list[datetime.time]) -> InlineKeyboardMarkup:
+    """
+    Создает инлайн-клавиатуру с доступными временными слотами.
+
+    Args:
+        time_slots (list[datetime.time]): Список доступных временных слотов.
+
+    Returns:
+        InlineKeyboardMarkup: Инлайн-клавиатура временных слотов.
+    """
+    builder = InlineKeyboardBuilder()
+    for slot in time_slots:
+        builder.row(
+            InlineKeyboardButton(
+                text=slot.strftime('%H:%M'),
+                callback_data=f"time_{slot.isoformat()}"
+            )
+        )
+    builder.row(InlineKeyboardButton(text="Назад к выбору даты", callback_data="back_to_date_selection"))
+    return builder.as_markup()
+
+def confirmation_keyboard() -> InlineKeyboardMarkup:
+    """
+    Создает клавиатуру для подтверждения записи.
+
+    Returns:
+        InlineKeyboardMarkup: Клавиатура подтверждения.
+    """
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Подтвердить", callback_data="confirm_appointment"),
+        InlineKeyboardButton(text="Отменить", callback_data="cancel_appointment_creation")
+    )
     return builder.as_markup()

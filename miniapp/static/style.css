@@ -1,0 +1,368 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+    padding: 0;
+    margin: 0;
+}
+
+#app {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+header {
+    background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    padding: 16px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #999999);
+}
+
+header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+#user-info {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #999999);
+}
+
+.tabs {
+    display: flex;
+    overflow-x: auto;
+    background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    border-bottom: 1px solid var(--tg-theme-hint-color, #999999);
+}
+
+.tab-button {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    color: var(--tg-theme-text-color, #000000);
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    background-color: var(--tg-theme-bg-color, #ffffff);
+}
+
+.tab-button.active {
+    color: var(--tg-theme-button-color, #3390ec);
+    border-bottom-color: var(--tg-theme-button-color, #3390ec);
+}
+
+main {
+    padding: 16px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--tg-theme-button-color, #3390ec);
+    color: var(--tg-theme-button-text-color, #ffffff);
+    margin-bottom: 16px;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary {
+    background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    color: var(--tg-theme-text-color, #000000);
+}
+
+.btn-danger {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+.list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.list-item {
+    background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.list-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.list-item-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.list-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.list-item-body {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #999999);
+}
+
+.filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.filters select {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close {
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--tg-theme-hint-color, #999999);
+}
+
+.close:hover {
+    color: var(--tg-theme-text-color, #000000);
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+    font-size: 14px;
+}
+
+.form-group textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.form-actions button {
+    flex: 1;
+}
+
+.notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--tg-theme-button-color, #3390ec);
+    color: var(--tg-theme-button-text-color, #ffffff);
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 2000;
+}
+
+.notification.show {
+    opacity: 1;
+}
+
+.notification.error {
+    background-color: #ef4444;
+}
+
+.notification.success {
+    background-color: #10b981;
+}
+
+.schedule-day {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.schedule-day-name {
+    min-width: 100px;
+    font-weight: 500;
+}
+
+.schedule-day-time {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.schedule-day-time input {
+    flex: 1;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--tg-theme-button-color, #3390ec);
+}
+
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-confirmed {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.status-completed {
+    background-color: #e0e7ff;
+    color: #3730a3;
+}

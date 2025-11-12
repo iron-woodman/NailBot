@@ -1,0 +1,17 @@
+[Unit]
+Description=Nails Appointment Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=your_user
+WorkingDirectory=/path/to/project
+Environment="PATH=/usr/bin:/usr/local/bin"
+ExecStart=/usr/bin/python3 /path/to/project/main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -6,3 +6,5 @@ FastAPI==0.104.1
 python-dotenv==1.0.0
 pytz==2023.3.post1
 uvicorn==0.24.0
+pydantic==2.4.2
+jinja2==3.1.2

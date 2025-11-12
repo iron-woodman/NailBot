@@ -118,16 +118,19 @@ async def calendar_navigation_handler(callback: types.CallbackQuery, session: As
     Обработчик навигации по календарю (переключение месяцев).
     """
     await callback.answer()
-    action = callback.data.split("_")[1]
+    parts = callback.data.split("_")
+    if len(parts) < 2:
+        return
+
+    action = parts[1]
     if action == "ignore":
         return
-        
-    if action == "nav":
-        _, _, year_str, month_str = callback.data.split("_")
-        year, month = int(year_str), int(month_str)
+
+    if action == "nav" and len(parts) >= 4:
+        year, month = int(parts[2]), int(parts[3])
 
         available_dates = await get_available_dates(session)
-    
+
         await callback.message.edit_text(
             "Выберите дату:",
             reply_markup=calendar_keyboard(year, month, available_dates)

@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from database.models import User
 from utils.keyboards import main_menu_keyboard
+from utils.messages import WELCOME_MESSAGE, RETURNING_USER_MESSAGE
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -39,9 +40,13 @@ async def command_start_handler(message: types.Message, session: AsyncSession) -
         await session.commit()
         await session.refresh(new_user)
         logger.info(f"Новый пользователь зарегистрирован: {new_user.full_name} (ID: {new_user.telegram_id})")
-        await message.answer(f"Привет, {user_full_name}! Добро пожаловать в бот для записи к мастеру ногтевого сервиса.", reply_markup=main_menu_keyboard())
+        await message.answer(
+            WELCOME_MESSAGE.format(full_name=user_full_name),
+            reply_markup=main_menu_keyboard()
+        )
     else:
         logger.info(f"Пользователь {user.full_name} (ID: {user.telegram_id}) уже зарегистрирован.")
-        await message.answer(f"С возвращением, {user_full_name}! Чем могу помочь?", reply_markup=main_menu_keyboard())
-
-    # TODO: Добавить вызов главного меню
+        await message.answer(
+            RETURNING_USER_MESSAGE.format(full_name=user_full_name),
+            reply_markup=main_menu_keyboard()
+        )

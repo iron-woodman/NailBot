@@ -1,38 +1,73 @@
 import logging
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
 
-# Настройка логирования
+from miniapp.routers import services, appointments, schedule, settings
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Создание экземпляра FastAPI
 app = FastAPI(
     title="Nails Appointment MiniApp API",
     description="API для административной панели управления записями.",
     version="1.0.0"
 )
 
-# Настройка CORS
+BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В продакшене лучше указать конкретный домен MiniApp
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-async def read_root():
-    """
-    Корневой эндпоинт для проверки работоспособности API.
-    """
-    return {"message": "Welcome to the MiniApp API!"}
+app.include_router(services.router)
+app.include_router(appointments.router)
+app.include_router(schedule.router)
+app.include_router(settings.router)
 
-# TODO: Добавить middleware для авторизации
-# TODO: Добавить эндпоинты для управления услугами, расписанием, записями
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Глобальный обработчик исключений.
+    """
+    logger.error(f"Необработанная ошибка: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Внутренняя ошибка сервера"}
+    )
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    """
+    Главная страница административной панели.
+    """
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/api")
+async def api_info():
+    """
+    Информация об API.
+    """
+    return {
+        "message": "Welcome to the MiniApp API!",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+@app.get("/health")
+async def health_check():
+    """
+    Эндпоинт для проверки здоровья API.
+    """
+    return {"status": "healthy"}
 
 logger.info("FastAPI приложение инициализировано.")
-
-# Для локального запуска можно использовать:
-# uvicorn miniapp.app:app --reload
