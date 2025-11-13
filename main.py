@@ -9,7 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import load_config, Config
 from database.session import init_db, AsyncSessionLocal
 from database.init_db import create_initial_data
-from handlers import start, menu, booking, appointments, contacts, error_handler
+from handlers import start, menu, booking, appointments, contacts, error_handler, unknown
 from middlewares.db import DbSessionMiddleware
 from utils.scheduler import setup_scheduler
 
@@ -42,12 +42,13 @@ async def main() -> None:
     async with AsyncSessionLocal() as session:
         await create_initial_data(session)
 
-    # Регистрация роутеров
+    # Регистрация роутеров (порядок важен: от специфичных к общим)
     dp.include_router(start.router)
     dp.include_router(menu.router)
     dp.include_router(booking.router)
     dp.include_router(appointments.router)
     dp.include_router(contacts.router)
+    dp.include_router(unknown.router)
     dp.include_router(error_handler.router)
 
     # Регистрация middleware
