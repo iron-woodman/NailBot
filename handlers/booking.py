@@ -204,7 +204,7 @@ async def confirm_appointment_handler(callback: types.CallbackQuery, session: As
     Обработчик подтверждения записи. Сохраняет запись в БД,
     отправляет уведомления и генерирует ссылку на Google Calendar.
     """
-    await callback.answer("Запись подтверждена!")
+    await callback.answer()
     user_data = await state.get_data()
     
     telegram_id = callback.from_user.id
@@ -230,6 +230,23 @@ async def confirm_appointment_handler(callback: types.CallbackQuery, session: As
     # Сохранение в UTC
     start_time_utc = start_time_aware.astimezone(pytz.utc)
     end_time_utc = end_time_aware.astimezone(pytz.utc)
+
+    # ponytail: check-then-insert race остаётся теоретически, но aiosqlite
+    # сериализует записи на уровне файла — практический риск близок к нулю
+    conflict = await session.execute(
+        select(Appointment).where(
+            Appointment.status == "confirmed",
+            Appointment.start_time < end_time_utc,
+            Appointment.end_time > start_time_utc,
+        )
+    )
+    if conflict.scalars().first():
+        await callback.message.edit_text(
+            "К сожалению, это время уже занято. Пожалуйста, выберите другое.",
+            reply_markup=main_menu_keyboard()
+        )
+        await state.clear()
+        return
 
     new_appointment = Appointment(
         user_id=user.id,

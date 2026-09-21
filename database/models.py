@@ -84,6 +84,8 @@ class Appointment(Base):
     end_time: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     google_event_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reminder_24h_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reminder_2h_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="appointments")

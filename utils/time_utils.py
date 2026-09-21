@@ -126,11 +126,16 @@ async def get_appointments_for_day(session: AsyncSession, date: datetime.date) -
     Returns:
         list[Appointment]: Список записей.
     """
-    start_of_day = datetime.datetime.combine(date, datetime.time.min)
-    end_of_day = datetime.datetime.combine(date, datetime.time.max)
+    tz = pytz.timezone(await get_timezone(session))
+    start_of_day = tz.localize(datetime.datetime.combine(date, datetime.time.min)).astimezone(pytz.utc)
+    end_of_day = tz.localize(datetime.datetime.combine(date, datetime.time.max)).astimezone(pytz.utc)
     result = await session.execute(
         select(Appointment)
-        .where(Appointment.start_time >= start_of_day, Appointment.start_time <= end_of_day)
+        .where(
+            Appointment.start_time >= start_of_day,
+            Appointment.start_time <= end_of_day,
+            Appointment.status != "cancelled",
+        )
         .order_by(Appointment.start_time)
     )
     return result.scalars().all()
@@ -169,11 +174,11 @@ def get_available_time_slots(
 
     # Начинаем проверку слотов с текущего времени, если выбран сегодняшний день
     if date == now.date() and now > current_time:
-        # Округляем текущее время до следующего 30-минутного интервала
-        minute = 30 if now.minute >= 30 else 0
-        current_time = now.replace(minute=minute, second=0, microsecond=0)
-        if now.minute > 0:
-            current_time += datetime.timedelta(minutes=30)
+        # Округляем текущее время вверх до следующего 30-минутного интервала
+        if now.minute < 30:
+            current_time = now.replace(minute=30, second=0, microsecond=0)
+        else:
+            current_time = now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
 
 
     while current_time + datetime.timedelta(minutes=service_duration) <= work_end_time:
