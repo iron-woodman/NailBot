@@ -50,7 +50,7 @@ async def read_root(request: Request):
     """
     Главная страница административной панели.
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 @app.get("/api")
 async def api_info():
