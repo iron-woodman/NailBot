@@ -1,11 +1,38 @@
 import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Time
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Time, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from database.session import Base
+
+class UtcDateTime(TypeDecorator):
+    """
+    Тип datetime, который всегда возвращает timezone-aware значение в UTC.
+
+    SQLite не хранит смещение и отдаёт naive datetime. Без нормализации
+    вызов .astimezone() трактовал бы такое значение как локальное время
+    сервера, и на сервере с TZ != UTC время записи уезжало бы на величину
+    смещения (и в отображении, и в расчёте пересечений слотов).
+    """
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: Optional[datetime.datetime], dialect) -> Optional[datetime.datetime]:
+        if value is None:
+            return None
+        # Naive значение считаем UTC — та же договорённость, что и в convert_to_timezone.
+        if value.tzinfo is None:
+            return value.replace(tzinfo=datetime.timezone.utc)
+        return value.astimezone(datetime.timezone.utc)
+
+    def process_result_value(self, value: Optional[datetime.datetime], dialect) -> Optional[datetime.datetime]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=datetime.timezone.utc)
+        return value.astimezone(datetime.timezone.utc)
 
 class User(Base):
     """
@@ -25,7 +52,7 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     username: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     full_name: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime.datetime] = mapped_column(UtcDateTime, server_default=func.now())
 
     appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="user")
 
@@ -80,13 +107,13 @@ class Appointment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     service_id: Mapped[int] = mapped_column(Integer, ForeignKey("services.id"), nullable=False)
-    start_time: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    end_time: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    start_time: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+    end_time: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     google_event_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reminder_24h_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     reminder_2h_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime.datetime] = mapped_column(UtcDateTime, server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="appointments")
     service: Mapped["Service"] = relationship("Service", back_populates="appointments")

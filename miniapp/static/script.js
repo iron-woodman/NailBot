@@ -6,6 +6,11 @@ tg.expand();
 
 const authHeader = `tma ${tg.initData}`;
 
+// Экранирование данных из API перед подстановкой в innerHTML.
+// Имя и username клиента приходят из его профиля Telegram, т.е. задаются им самим.
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
 function showNotification(message, type = 'success') {
     const notification = document.getElementById('notification');
     notification.textContent = message;
@@ -74,7 +79,7 @@ async function loadServices() {
     container.innerHTML = services.map(service => `
         <div class="list-item">
             <div class="list-item-header">
-                <div class="list-item-title">${service.name}</div>
+                <div class="list-item-title">${esc(service.name)}</div>
                 <div class="list-item-actions">
                     <button class="btn btn-secondary" onclick="editService(${service.id})">Изменить</button>
                     <button class="btn btn-danger" onclick="deleteService(${service.id})">Удалить</button>
@@ -83,7 +88,7 @@ async function loadServices() {
             <div class="list-item-body">
                 <div>Длительность: ${service.duration_minutes} мин</div>
                 <div>Цена: ${service.price} руб.</div>
-                <div>Описание: ${service.description || 'Нет'}</div>
+                <div>Описание: ${esc(service.description || 'Нет')}</div>
                 <div>Статус: ${service.active ? 'Активна' : 'Неактивна'}</div>
             </div>
         </div>
@@ -158,9 +163,9 @@ async function loadSchedule() {
         <div class="schedule-day">
             <div class="schedule-day-name">${days[day.weekday]}</div>
             <div class="schedule-day-time">
-                <input type="time" value="${day.start_time}" id="start-${day.weekday}">
+                <input type="time" value="${esc(day.start_time)}" id="start-${day.weekday}">
                 <span>-</span>
-                <input type="time" value="${day.end_time}" id="end-${day.weekday}">
+                <input type="time" value="${esc(day.end_time)}" id="end-${day.weekday}">
             </div>
             <label class="toggle">
                 <input type="checkbox" ${day.is_working ? 'checked' : ''} id="working-${day.weekday}">
@@ -195,11 +200,11 @@ async function loadAppointments() {
     container.innerHTML = appointments.map(app => `
         <div class="list-item">
             <div class="list-item-header">
-                <div class="list-item-title">${app.user_name} (@${app.user_username || 'N/A'})</div>
-                <span class="status-badge status-${app.status}">${app.status}</span>
+                <div class="list-item-title">${esc(app.user_name)} (@${esc(app.user_username || 'N/A')})</div>
+                <span class="status-badge status-${esc(app.status)}">${esc(app.status)}</span>
             </div>
             <div class="list-item-body">
-                <div>Услуга: ${app.service_name}</div>
+                <div>Услуга: ${esc(app.service_name)}</div>
                 <div>Дата: ${new Date(app.start_time).toLocaleDateString('ru-RU')}</div>
                 <div>Время: ${new Date(app.start_time).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}</div>
             </div>
@@ -230,7 +235,7 @@ async function loadHolidays() {
                 <div class="list-item-title">${new Date(holiday.date).toLocaleDateString('ru-RU')}</div>
                 <button class="btn btn-danger" onclick="deleteHoliday(${holiday.id})">Удалить</button>
             </div>
-            <div class="list-item-body">${holiday.reason || 'Без причины'}</div>
+            <div class="list-item-body">${esc(holiday.reason || 'Без причины')}</div>
         </div>
     `).join('');
 }
@@ -295,7 +300,7 @@ async function loadSettings() {
             </div>
             <div class="form-group">
                 <label>Часовой пояс</label>
-                <input type="text" name="timezone" value="${settings.timezone}" required>
+                <input type="text" name="timezone" value="${esc(settings.timezone)}" required>
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Сохранить</button>

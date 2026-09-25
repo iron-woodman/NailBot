@@ -2,6 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from database.models import Service
+from utils.time_utils import format_in_timezone
 import datetime
 
 def main_menu_keyboard() -> InlineKeyboardMarkup:
@@ -43,12 +44,13 @@ def services_keyboard(services: list[Service]) -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="Назад в главное меню", callback_data="back_to_main_menu"))
     return builder.as_markup()
 
-def appointments_keyboard(appointments: list) -> InlineKeyboardMarkup:
+def appointments_keyboard(appointments: list, timezone_str: str) -> InlineKeyboardMarkup:
     """
     Создает инлайн-клавиатуру со списком записей и кнопками для отмены.
 
     Args:
         appointments (list[Appointment]): Список записей пользователя.
+        timezone_str (str): Часовой пояс для отображения времени.
 
     Returns:
         InlineKeyboardMarkup: Инлайн-клавиатура для управления записями.
@@ -57,7 +59,7 @@ def appointments_keyboard(appointments: list) -> InlineKeyboardMarkup:
     for appointment in appointments:
         builder.row(
             InlineKeyboardButton(
-                text=f"Отменить запись на {appointment.start_time.strftime('%d.%m %H:%M')}",
+                text=f"Отменить запись на {format_in_timezone(appointment.start_time, timezone_str, '%d.%m %H:%M')}",
                 callback_data=f"cancel_appointment_{appointment.id}"
             )
         )

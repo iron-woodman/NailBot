@@ -1,12 +1,18 @@
 import hashlib
 import hmac
+import logging
+import time
 from typing import Optional
 from urllib.parse import parse_qsl
 
 from fastapi import HTTPException, Header
 from config import load_config
 
+logger = logging.getLogger(__name__)
 config = load_config()
+
+# Telegram не обновляет initData в течение сессии WebApp, поэтому TTL берём с запасом.
+INIT_DATA_TTL_SECONDS = 24 * 3600
 
 def verify_telegram_web_app_data(init_data: str) -> dict:
     """
@@ -43,12 +49,21 @@ def verify_telegram_web_app_data(init_data: str) -> dict:
             digestmod=hashlib.sha256
         ).hexdigest()
 
-        if calculated_hash != received_hash:
+        if not hmac.compare_digest(calculated_hash, received_hash):
             raise HTTPException(status_code=403, detail="Invalid hash")
 
+        # Подпись сама по себе бессрочна: без этой проверки перехваченный
+        # initData оставался бы валидным навсегда.
+        auth_date = int(parsed_data.get('auth_date', 0))
+        if time.time() - auth_date > INIT_DATA_TTL_SECONDS:
+            raise HTTPException(status_code=403, detail="Init data expired")
+
         return parsed_data
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=403, detail=f"Verification failed: {str(e)}")
+        logger.warning(f"Не удалось проверить initData: {e}")
+        raise HTTPException(status_code=403, detail="Verification failed")
 
 async def verify_admin(authorization: Optional[str] = Header(None)) -> dict:
     """

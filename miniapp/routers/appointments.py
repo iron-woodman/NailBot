@@ -2,6 +2,7 @@ import datetime
 import logging
 from typing import List
 
+import pytz
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -11,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from database.models import Appointment, User, Service
 from database.session import get_async_session
 from miniapp.auth import verify_admin
+from utils.time_utils import get_timezone
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
@@ -49,11 +51,16 @@ async def get_appointments(
     if status:
         query = query.where(Appointment.status == status)
 
+    if date_from or date_to:
+        tz = pytz.timezone(await get_timezone(session))
+
     if date_from:
-        query = query.where(Appointment.start_time >= datetime.datetime.combine(date_from, datetime.time.min))
+        start_of_day = tz.localize(datetime.datetime.combine(date_from, datetime.time.min)).astimezone(pytz.utc)
+        query = query.where(Appointment.start_time >= start_of_day)
 
     if date_to:
-        query = query.where(Appointment.start_time <= datetime.datetime.combine(date_to, datetime.time.max))
+        end_of_day = tz.localize(datetime.datetime.combine(date_to, datetime.time.max)).astimezone(pytz.utc)
+        query = query.where(Appointment.start_time <= end_of_day)
 
     result = await session.execute(query)
     appointments = result.scalars().all()

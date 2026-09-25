@@ -1,3 +1,4 @@
+import os
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -9,8 +10,10 @@ from config import load_config
 config = load_config()
 DATABASE_URL = config.db.database_url
 
-# Создание асинхронного движка SQLAlchemy
-engine = create_async_engine(DATABASE_URL, echo=True)
+# Создание асинхронного движка SQLAlchemy.
+# echo включается только через SQL_ECHO=1: иначе в логи попадают имена и
+# username клиентов из параметров каждого запроса.
+engine = create_async_engine(DATABASE_URL, echo=os.getenv("SQL_ECHO") == "1")
 
 # Создание фабрики асинхронных сессий
 AsyncSessionLocal = async_sessionmaker(

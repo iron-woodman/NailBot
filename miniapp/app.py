@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -21,10 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+# API авторизуется заголовком Authorization, а не куками, поэтому credentials
+# не нужны; wildcard вместе с allow_credentials браузер всё равно отвергает.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[os.getenv("MINIAPP_ORIGIN", "https://web.telegram.org")],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

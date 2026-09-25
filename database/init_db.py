@@ -55,9 +55,9 @@ async def create_initial_data(session: AsyncSession) -> None:
         service = await session.execute(Service.__table__.select().where(Service.name == service_data["name"])) # type: ignore
         if not service.scalar_one_or_none():
             session.add(Service(**service_data))
-            logger.info(f"Услуга '{service_data["name"]}' добавлена.")
+            logger.info(f"Услуга '{service_data['name']}' добавлена.")
         else:
-            logger.info(f"Услуга '{service_data["name"]}' уже существует.")
+            logger.info(f"Услуга '{service_data['name']}' уже существует.")
 
     await session.commit()
     logger.info("Начальные данные успешно созданы.")

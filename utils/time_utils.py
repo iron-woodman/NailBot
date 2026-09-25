@@ -87,6 +87,22 @@ def convert_to_timezone(dt: datetime.datetime, tz_name: str) -> datetime.datetim
 
     return dt.astimezone(target_tz)
 
+def format_in_timezone(dt: datetime.datetime, tz_name: str, fmt: str = '%d.%m.%Y %H:%M') -> str:
+    """
+    Форматирует datetime из базы в местном часовом поясе.
+
+    Значения в БД хранятся в UTC, поэтому прямой strftime печатал бы время UTC.
+
+    Args:
+        dt (datetime.datetime): Время из базы (UTC).
+        tz_name (str): Целевой часовой пояс (например, 'Europe/Moscow').
+        fmt (str): Формат strftime.
+
+    Returns:
+        str: Отформатированное местное время.
+    """
+    return convert_to_timezone(dt, tz_name).strftime(fmt)
+
 def get_current_time_in_timezone(tz_name: str) -> datetime.datetime:
     """
     Возвращает текущее время в указанном часовом поясе.
@@ -186,8 +202,8 @@ def get_available_time_slots(
         is_slot_available = True
 
         for appointment in appointments:
-            appointment_start = appointment.start_time.astimezone(tz)
-            appointment_end = appointment.end_time.astimezone(tz)
+            appointment_start = convert_to_timezone(appointment.start_time, timezone_str)
+            appointment_end = convert_to_timezone(appointment.end_time, timezone_str)
 
             # Проверка на пересечение временных интервалов
             if max(current_time, appointment_start) < min(slot_end_time, appointment_end):

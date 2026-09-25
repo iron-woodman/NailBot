@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from database.models import Appointment, User
 from utils.keyboards import main_menu_keyboard, appointments_keyboard, confirmation_cancel_keyboard
+from utils.time_utils import format_in_timezone, get_timezone
 from config import load_config
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,26 @@ async def get_user_appointments(session: AsyncSession, telegram_id: int) -> list
     )
     return result.scalars().all()
 
+async def get_own_appointment(session: AsyncSession, appointment_id: int, telegram_id: int) -> Appointment | None:
+    """
+    Возвращает запись по её ID, только если она принадлежит указанному пользователю.
+
+    Args:
+        session (AsyncSession): Асинхронная сессия базы данных.
+        appointment_id (int): ID записи.
+        telegram_id (int): Telegram ID пользователя.
+
+    Returns:
+        Appointment | None: Запись пользователя или None, если она не найдена или чужая.
+    """
+    result = await session.execute(
+        select(Appointment)
+        .join(User)
+        .where(Appointment.id == appointment_id, User.telegram_id == telegram_id)
+        .options(selectinload(Appointment.service), selectinload(Appointment.user))
+    )
+    return result.scalar_one_or_none()
+
 @router.callback_query(F.data == "my_appointments")
 async def my_appointments_handler(callback: types.CallbackQuery, session: AsyncSession) -> None:
     """
@@ -52,12 +73,13 @@ async def my_appointments_handler(callback: types.CallbackQuery, session: AsyncS
         )
         return
 
+    timezone_str = await get_timezone(session)
     response_text = "<b>Ваши предстоящие записи:</b>\n\n"
     for app in appointments:
         response_text += (
             f"<b>Услуга:</b> {app.service.name}\n"
-            f"<b>Дата:</b> {app.start_time.strftime('%d.%m.%Y')}\n"
-            f"<b>Время:</b> {app.start_time.strftime('%H:%M')}\n"
+            f"<b>Дата:</b> {format_in_timezone(app.start_time, timezone_str, '%d.%m.%Y')}\n"
+            f"<b>Время:</b> {format_in_timezone(app.start_time, timezone_str, '%H:%M')}\n"
             f"--------------------\n"
         )
 
@@ -81,7 +103,7 @@ async def cancel_appointment_list_handler(callback: types.CallbackQuery, session
 
     await callback.message.edit_text(
         "Какую запись вы хотите отменить?",
-        reply_markup=appointments_keyboard(appointments)
+        reply_markup=appointments_keyboard(appointments, await get_timezone(session))
     )
 
 @router.callback_query(F.data.startswith("cancel_appointment_"))
@@ -92,15 +114,16 @@ async def cancel_appointment_confirm_handler(callback: types.CallbackQuery, sess
     await callback.answer()
     appointment_id = int(callback.data.split("_")[2])
     
-    appointment = await session.get(Appointment, appointment_id, options=[selectinload(Appointment.service)])
+    appointment = await get_own_appointment(session, appointment_id, callback.from_user.id)
     if not appointment:
         await callback.message.edit_text("Запись не найдена.", reply_markup=main_menu_keyboard())
         return
 
+    timezone_str = await get_timezone(session)
     await callback.message.edit_text(
         f"Вы уверены, что хотите отменить запись на услугу "
         f"<b>{appointment.service.name}</b> на "
-        f"<b>{appointment.start_time.strftime('%d.%m.%Y в %H:%M')}</b>?",
+        f"<b>{format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y в %H:%M')}</b>?",
         reply_markup=confirmation_cancel_keyboard(appointment_id)
     )
 
@@ -113,7 +136,7 @@ async def cancel_appointment_confirmed_handler(callback: types.CallbackQuery, se
     await callback.answer("Запись отменена.")
     appointment_id = int(callback.data.split("_")[2])
 
-    appointment = await session.get(Appointment, appointment_id, options=[selectinload(Appointment.service), selectinload(Appointment.user)])
+    appointment = await get_own_appointment(session, appointment_id, callback.from_user.id)
     if not appointment:
         await callback.message.edit_text("Запись не найдена.", reply_markup=main_menu_keyboard())
         return
@@ -121,8 +144,9 @@ async def cancel_appointment_confirmed_handler(callback: types.CallbackQuery, se
     appointment.status = "cancelled"
     await session.commit()
 
+    timezone_str = await get_timezone(session)
     await callback.message.edit_text(
-        f"Ваша запись на <b>{appointment.start_time.strftime('%d.%m.%Y в %H:%M')}</b> успешно отменена.",
+        f"Ваша запись на <b>{format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y в %H:%M')}</b> успешно отменена.",
         reply_markup=main_menu_keyboard()
     )
 
@@ -133,7 +157,7 @@ async def cancel_appointment_confirmed_handler(callback: types.CallbackQuery, se
             f"Клиент отменил запись!\n\n"
             f"Клиент: {appointment.user.full_name} (@{appointment.user.username or 'N/A'})\n"
             f"Услуга: {appointment.service.name}\n"
-            f"Дата: {appointment.start_time.strftime('%d.%m.%Y')}\n"
-            f"Время: {appointment.start_time.strftime('%H:%M')}"
+            f"Дата: {format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y')}\n"
+            f"Время: {format_in_timezone(appointment.start_time, timezone_str, '%H:%M')}"
         )
     )
