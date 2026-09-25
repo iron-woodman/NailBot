@@ -5,6 +5,12 @@ from database.models import Service
 from utils.time_utils import format_in_timezone
 import datetime
 
+# strftime('%B') отдаёт название месяца по локали системы, т.е. обычно по-английски.
+MONTH_NAMES_RU = (
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+)
+
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     """
     Создает инлайн-клавиатуру для главного меню бота.
@@ -99,7 +105,7 @@ def calendar_keyboard(year: int, month: int, available_dates: list[datetime.date
     today = datetime.date.today()
 
     # Заголовок с месяцем и годом
-    builder.row(InlineKeyboardButton(text=f"{datetime.date(year, month, 1).strftime('%B %Y')}", callback_data="ignore"))
+    builder.row(InlineKeyboardButton(text=f"{MONTH_NAMES_RU[month - 1]} {year}", callback_data="ignore"))
 
     # Дни недели
     builder.row(
@@ -186,6 +192,6 @@ def confirmation_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="Подтвердить", callback_data="confirm_appointment"),
-        InlineKeyboardButton(text="Отменить", callback_data="cancel_appointment_creation")
+        InlineKeyboardButton(text="Отменить", callback_data="booking_cancel")
     )
     return builder.as_markup()

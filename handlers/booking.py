@@ -8,7 +8,7 @@ from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Service, User, Appointment
+from database.models import Service, Appointment
 from utils.keyboards import (
     services_keyboard, calendar_keyboard, time_slots_keyboard,
     confirmation_keyboard, main_menu_keyboard
@@ -19,6 +19,7 @@ from utils.time_utils import (
     get_appointments_for_day, get_available_time_slots
 )
 from utils.google_calendar import generate_google_calendar_link
+from utils.users import get_or_create_user
 from config import load_config
 
 logger = logging.getLogger(__name__)
@@ -207,9 +208,7 @@ async def confirm_appointment_handler(callback: types.CallbackQuery, session: As
     await callback.answer()
     user_data = await state.get_data()
     
-    telegram_id = callback.from_user.id
-    result = await session.execute(select(User).where(User.telegram_id == telegram_id))
-    user = result.scalar_one()
+    user, _ = await get_or_create_user(session, callback.from_user)
 
     service_id = user_data.get("service_id")
     service_name = user_data.get("service_name")
@@ -233,9 +232,11 @@ async def confirm_appointment_handler(callback: types.CallbackQuery, session: As
 
     # ponytail: check-then-insert race остаётся теоретически, но aiosqlite
     # сериализует записи на уровне файла — практический риск близок к нулю
+    # Набор статусов тот же, что в get_appointments_for_day: иначе слот, занятый
+    # записью в pending/completed, блокировался бы в UI, но не при вставке.
     conflict = await session.execute(
         select(Appointment).where(
-            Appointment.status == "confirmed",
+            Appointment.status != "cancelled",
             Appointment.start_time < end_time_utc,
             Appointment.end_time > start_time_utc,
         )
@@ -269,21 +270,25 @@ async def confirm_appointment_handler(callback: types.CallbackQuery, session: As
         disable_web_page_preview=True
     )
 
-    # Уведомление мастеру
-    await bot.send_message(
-        chat_id=config.tg_bot.admin_id,
-        text=(
-            f"Новая запись!\n\n"
-            f"Клиент: {user.full_name} (@{user.username or 'N/A'})\n"
-            f"Услуга: {service_name}\n"
-            f"Дата: {selected_date.strftime('%d.%m.%Y')}\n"
-            f"Время: {selected_time_str}"
+    # Уведомление мастеру. Запись уже создана, поэтому недоступный админ
+    # (не нажал /start, заблокировал бота) не должен ломать ответ клиенту.
+    try:
+        await bot.send_message(
+            chat_id=config.tg_bot.admin_id,
+            text=(
+                f"Новая запись!\n\n"
+                f"Клиент: {user.full_name} (@{user.username or 'N/A'})\n"
+                f"Услуга: {service_name}\n"
+                f"Дата: {selected_date.strftime('%d.%m.%Y')}\n"
+                f"Время: {selected_time_str}"
+            )
         )
-    )
+    except Exception as e:
+        logger.error(f"Не удалось уведомить мастера о новой записи {new_appointment.id}: {e}")
     
     await state.clear()
 
-@router.callback_query(Booking.confirming_appointment, F.data == "cancel_appointment_creation")
+@router.callback_query(Booking.confirming_appointment, F.data == "booking_cancel")
 async def cancel_appointment_creation_handler(callback: types.CallbackQuery, state: FSMContext) -> None:
     """
     Обработчик отмены создания записи.

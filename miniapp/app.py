@@ -1,21 +1,36 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
 
+from database.session import init_db
 from miniapp.routers import services, appointments, schedule, settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Создаёт схему БД до приёма запросов.
+
+    API и бот поднимаются независимо, и на чистом томе API мог стартовать
+    первым — тогда все запросы падали на "no such table".
+    """
+    await init_db()
+    yield
+
 app = FastAPI(
     title="Nails Appointment MiniApp API",
     description="API для административной панели управления записями.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 BASE_DIR = Path(__file__).resolve().parent

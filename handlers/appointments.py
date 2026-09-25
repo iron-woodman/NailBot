@@ -36,6 +36,22 @@ async def get_user_appointments(session: AsyncSession, telegram_id: int) -> list
     )
     return result.scalars().all()
 
+def parse_appointment_id(callback_data: str) -> int | None:
+    """
+    Достаёт ID записи из callback_data вида "<префикс>_<id>".
+
+    Возвращает None, если на конце не число: под префикс cancel_appointment_
+    попадают и нечисловые callback'и других роутеров, и int() на них падал.
+
+    Args:
+        callback_data (str): Данные callback-запроса.
+
+    Returns:
+        int | None: ID записи или None, если разобрать не удалось.
+    """
+    tail = callback_data.rsplit("_", 1)[-1]
+    return int(tail) if tail.isdigit() else None
+
 async def get_own_appointment(session: AsyncSession, appointment_id: int, telegram_id: int) -> Appointment | None:
     """
     Возвращает запись по её ID, только если она принадлежит указанному пользователю.
@@ -112,9 +128,9 @@ async def cancel_appointment_confirm_handler(callback: types.CallbackQuery, sess
     Запрашивает подтверждение отмены записи.
     """
     await callback.answer()
-    appointment_id = int(callback.data.split("_")[2])
-    
-    appointment = await get_own_appointment(session, appointment_id, callback.from_user.id)
+    appointment_id = parse_appointment_id(callback.data)
+
+    appointment = await get_own_appointment(session, appointment_id, callback.from_user.id) if appointment_id else None
     if not appointment:
         await callback.message.edit_text("Запись не найдена.", reply_markup=main_menu_keyboard())
         return
@@ -134,9 +150,9 @@ async def cancel_appointment_confirmed_handler(callback: types.CallbackQuery, se
     и отправляет уведомления.
     """
     await callback.answer("Запись отменена.")
-    appointment_id = int(callback.data.split("_")[2])
+    appointment_id = parse_appointment_id(callback.data)
 
-    appointment = await get_own_appointment(session, appointment_id, callback.from_user.id)
+    appointment = await get_own_appointment(session, appointment_id, callback.from_user.id) if appointment_id else None
     if not appointment:
         await callback.message.edit_text("Запись не найдена.", reply_markup=main_menu_keyboard())
         return
@@ -150,14 +166,18 @@ async def cancel_appointment_confirmed_handler(callback: types.CallbackQuery, se
         reply_markup=main_menu_keyboard()
     )
 
-    # Уведомление мастеру
-    await bot.send_message(
-        chat_id=config.tg_bot.admin_id,
-        text=(
-            f"Клиент отменил запись!\n\n"
-            f"Клиент: {appointment.user.full_name} (@{appointment.user.username or 'N/A'})\n"
-            f"Услуга: {appointment.service.name}\n"
-            f"Дата: {format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y')}\n"
-            f"Время: {format_in_timezone(appointment.start_time, timezone_str, '%H:%M')}"
+    # Уведомление мастеру. Запись уже отменена в БД, поэтому недоступный админ
+    # не должен ломать ответ клиенту.
+    try:
+        await bot.send_message(
+            chat_id=config.tg_bot.admin_id,
+            text=(
+                f"Клиент отменил запись!\n\n"
+                f"Клиент: {appointment.user.full_name} (@{appointment.user.username or 'N/A'})\n"
+                f"Услуга: {appointment.service.name}\n"
+                f"Дата: {format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y')}\n"
+                f"Время: {format_in_timezone(appointment.start_time, timezone_str, '%H:%M')}"
+            )
         )
-    )
+    except Exception as e:
+        logger.error(f"Не удалось уведомить мастера об отмене записи {appointment.id}: {e}")

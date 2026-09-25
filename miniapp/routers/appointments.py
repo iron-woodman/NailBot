@@ -3,6 +3,7 @@ import logging
 from typing import List
 
 import pytz
+from aiogram import Bot
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -11,11 +12,37 @@ from sqlalchemy.orm import selectinload
 
 from database.models import Appointment, User, Service
 from database.session import get_async_session
+from config import load_config
 from miniapp.auth import verify_admin
-from utils.time_utils import get_timezone
+from utils.time_utils import format_in_timezone, get_timezone
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
+config = load_config()
+
+async def notify_client_cancelled(appointment: Appointment, timezone_str: str) -> None:
+    """
+    Сообщает клиенту, что мастер отменил его запись.
+
+    Без этого клиент узнавал об отмене только придя на приём.
+
+    Args:
+        appointment (Appointment): Отменённая запись (с загруженными user и service).
+        timezone_str (str): Часовой пояс для отображения времени.
+    """
+    bot = Bot(token=config.tg_bot.token)
+    try:
+        await bot.send_message(
+            appointment.user.telegram_id,
+            f"К сожалению, ваша запись на услугу '{appointment.service.name}' "
+            f"{format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y в %H:%M')} "
+            f"была отменена мастером.\n\n"
+            f"Вы можете записаться на другое время."
+        )
+    except Exception as e:
+        logger.error(f"Не удалось уведомить клиента об отмене записи {appointment.id}: {e}")
+    finally:
+        await bot.session.close()
 
 class AppointmentResponse(BaseModel):
     id: int
@@ -103,8 +130,12 @@ async def update_appointment_status(
     if not appointment:
         raise HTTPException(status_code=404, detail="Запись не найдена")
 
+    was_cancelled = appointment.status == "cancelled"
     appointment.status = status
     await session.commit()
+
+    if status == "cancelled" and not was_cancelled:
+        await notify_client_cancelled(appointment, await get_timezone(session))
 
     logger.info(f"Обновлен статус записи {appointment_id} на {status}")
     return {"status": "success", "message": f"Статус обновлен на {status}"}
@@ -126,8 +157,12 @@ async def cancel_appointment(
     if not appointment:
         raise HTTPException(status_code=404, detail="Запись не найдена")
 
+    was_cancelled = appointment.status == "cancelled"
     appointment.status = "cancelled"
     await session.commit()
+
+    if not was_cancelled:
+        await notify_client_cancelled(appointment, await get_timezone(session))
 
     logger.info(f"Отменена запись {appointment_id} администратором")
     return {"status": "success", "message": "Запись отменена"}

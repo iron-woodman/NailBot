@@ -1,4 +1,5 @@
 import datetime
+import math
 from typing import Optional
 
 import pytz
@@ -6,6 +7,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import WorkSchedule, Holiday, Settings, Appointment
+
+# Шаг сетки слотов и минимальный запас до начала записи.
+# Запас нужен, чтобы нельзя было записаться "через минуту"; подкручивается под
+# реальную логистику мастера.
+SLOT_STEP_MINUTES = 30
+BOOKING_LEAD_MINUTES = 60
 
 async def get_timezone(session: AsyncSession) -> str:
     """
@@ -188,14 +195,14 @@ def get_available_time_slots(
     available_slots = []
     current_time = work_start_time
 
-    # Начинаем проверку слотов с текущего времени, если выбран сегодняшний день
-    if date == now.date() and now > current_time:
-        # Округляем текущее время вверх до следующего 30-минутного интервала
-        if now.minute < 30:
-            current_time = now.replace(minute=30, second=0, microsecond=0)
-        else:
-            current_time = now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
-
+    # Ближайший допустимый старт — с учётом запаса. Округляем вверх по сетке,
+    # отсчитываемой от начала рабочего дня, иначе слоты уезжают с сетки, когда
+    # рабочий день начинается не в ровный час.
+    earliest_start = now + datetime.timedelta(minutes=BOOKING_LEAD_MINUTES)
+    if current_time < earliest_start:
+        minutes_ahead = (earliest_start - work_start_time).total_seconds() / 60
+        steps = math.ceil(minutes_ahead / SLOT_STEP_MINUTES)
+        current_time = work_start_time + datetime.timedelta(minutes=steps * SLOT_STEP_MINUTES)
 
     while current_time + datetime.timedelta(minutes=service_duration) <= work_end_time:
         slot_end_time = current_time + datetime.timedelta(minutes=service_duration)
@@ -213,6 +220,6 @@ def get_available_time_slots(
         if is_slot_available:
             available_slots.append(current_time.time())
 
-        current_time += datetime.timedelta(minutes=30) # Интервал между слотами
+        current_time += datetime.timedelta(minutes=SLOT_STEP_MINUTES)
 
     return available_slots

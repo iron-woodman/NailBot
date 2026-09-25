@@ -74,7 +74,7 @@ async function apiRequest(url, options = {}) {
 }
 
 async function loadServices() {
-    const services = await apiRequest('/api/services');
+    const services = await apiRequest('/api/services/');
     const container = document.getElementById('services-list');
     container.innerHTML = services.map(service => `
         <div class="list-item">
@@ -133,7 +133,7 @@ function showAddServiceModal() {
             active: true
         };
 
-        await apiRequest('/api/services', {
+        await apiRequest('/api/services/', {
             method: 'POST',
             body: JSON.stringify(data)
         });
@@ -194,7 +194,7 @@ async function updateSchedule(weekday) {
 async function loadAppointments() {
     const status = document.getElementById('status-filter').value;
     const params = status ? `?status=${status}` : '';
-    const appointments = await apiRequest(`/api/appointments${params}`);
+    const appointments = await apiRequest(`/api/appointments/${params}`);
     const container = document.getElementById('appointments-list');
 
     container.innerHTML = appointments.map(app => `
@@ -289,7 +289,7 @@ async function deleteHoliday(id) {
 }
 
 async function loadSettings() {
-    const settings = await apiRequest('/api/settings');
+    const settings = await apiRequest('/api/settings/');
     const container = document.getElementById('settings-form');
 
     container.innerHTML = `
@@ -316,7 +316,7 @@ async function loadSettings() {
             timezone: formData.get('timezone')
         };
 
-        await apiRequest('/api/settings', {
+        await apiRequest('/api/settings/', {
             method: 'PUT',
             body: JSON.stringify(data)
         });

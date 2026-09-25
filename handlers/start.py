@@ -3,11 +3,10 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from database.models import User
 from utils.keyboards import main_menu_keyboard
 from utils.messages import WELCOME_MESSAGE, RETURNING_USER_MESSAGE
+from utils.users import get_or_create_user
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -21,32 +20,13 @@ async def command_start_handler(message: types.Message, session: AsyncSession) -
         message (types.Message): Объект сообщения от пользователя.
         session (AsyncSession): Асинхронная сессия базы данных.
     """
-    user_telegram_id = message.from_user.id
-    user_full_name = message.from_user.full_name
-    user_username = message.from_user.username
+    user, created = await get_or_create_user(session, message.from_user)
 
-    # Проверка наличия пользователя в БД
-    result = await session.execute(select(User).where(User.telegram_id == user_telegram_id))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        # Если пользователя нет, создаем нового
-        new_user = User(
-            telegram_id=user_telegram_id,
-            full_name=user_full_name,
-            username=user_username
-        )
-        session.add(new_user)
-        await session.commit()
-        await session.refresh(new_user)
-        logger.info(f"Новый пользователь зарегистрирован: {new_user.full_name} (ID: {new_user.telegram_id})")
-        await message.answer(
-            WELCOME_MESSAGE.format(full_name=user_full_name),
-            reply_markup=main_menu_keyboard()
-        )
-    else:
+    template = WELCOME_MESSAGE if created else RETURNING_USER_MESSAGE
+    if not created:
         logger.info(f"Пользователь {user.full_name} (ID: {user.telegram_id}) уже зарегистрирован.")
-        await message.answer(
-            RETURNING_USER_MESSAGE.format(full_name=user_full_name),
-            reply_markup=main_menu_keyboard()
-        )
+
+    await message.answer(
+        template.format(full_name=message.from_user.full_name),
+        reply_markup=main_menu_keyboard()
+    )

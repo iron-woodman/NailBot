@@ -14,7 +14,7 @@ from config import load_config
 logger = logging.getLogger(__name__)
 config = load_config()
 
-async def send_reminder(bot: Bot, appointment: Appointment, time_left: str, timezone_str: str):
+async def send_reminder(bot: Bot, appointment: Appointment, time_left: str, timezone_str: str) -> bool:
     """
     Отправляет напоминание о предстоящей записи.
 
@@ -23,22 +23,28 @@ async def send_reminder(bot: Bot, appointment: Appointment, time_left: str, time
         appointment (Appointment): Объект записи.
         time_left (str): Оставшееся время (например, "24 часа" или "2 часа").
         timezone_str (str): Часовой пояс для отображения времени.
+
+    Returns:
+        bool: True, если напоминание отправлено.
     """
     user_id = appointment.user.telegram_id
     service_name = appointment.service.name
     start_time_str = format_in_timezone(appointment.start_time, timezone_str, '%H:%M')
+    date_str = format_in_timezone(appointment.start_time, timezone_str, '%d.%m.%Y')
     
     try:
         await bot.send_message(
             user_id,
             f"🔔 Напоминание!\n\n"
             f"У вас скоро запись на услугу <b>'{service_name}'</b>.\n"
-            f"Ждем вас сегодня в <b>{start_time_str}</b>.\n\n"
+            f"Ждем вас {date_str} в <b>{start_time_str}</b>.\n\n"
             f"До встречи осталось {time_left}!"
         )
         logger.info(f"Отправлено напоминание пользователю {user_id} о записи {appointment.id}")
+        return True
     except Exception as e:
         logger.error(f"Не удалось отправить напоминание пользователю {user_id}: {e}")
+        return False
 
 async def check_upcoming_appointments(bot: Bot, session_pool):
     """
@@ -66,8 +72,9 @@ async def check_upcoming_appointments(bot: Bot, session_pool):
         )
         appointments_24h = result_24h.scalars().all()
         for app in appointments_24h:
-            await send_reminder(bot, app, "24 часа", timezone_str)
-            app.reminder_24h_sent = True
+            # Флаг только при успехе: иначе разовый сбой сети терял бы напоминание.
+            if await send_reminder(bot, app, "24 часа", timezone_str):
+                app.reminder_24h_sent = True
         await session.commit()
 
         # Записи, до которых осталось 1-2 часа
@@ -85,8 +92,9 @@ async def check_upcoming_appointments(bot: Bot, session_pool):
         )
         appointments_2h = result_2h.scalars().all()
         for app in appointments_2h:
-            await send_reminder(bot, app, "2 часа", timezone_str)
-            app.reminder_2h_sent = True
+            # Флаг только при успехе: иначе разовый сбой сети терял бы напоминание.
+            if await send_reminder(bot, app, "2 часа", timezone_str):
+                app.reminder_2h_sent = True
         await session.commit()
 
 def setup_scheduler(scheduler: AsyncIOScheduler, bot: Bot, session_pool):

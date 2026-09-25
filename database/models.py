@@ -1,7 +1,7 @@
 import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Time, TypeDecorator
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Time, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -155,7 +155,7 @@ class Holiday(Base):
     __tablename__ = "holidays"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    date: Mapped[datetime.date] = mapped_column(DateTime().with_variant(String, "sqlite"), unique=True, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, unique=True, nullable=False)
     reason: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     def __repr__(self) -> str:
